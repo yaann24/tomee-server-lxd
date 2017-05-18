@@ -1,0 +1,60 @@
+- name: MAJ des package
+  apt:
+   update_cache: yes
+
+- name: installation du jdk8
+  package: name=openjdk-8-jdk-headless state=present
+
+
+- name: Creation du compte pour TomEE
+  user:
+    name: tomee
+    password: $6$YnRzIlVnmaav$7u7RkCUDxsZXoJfWCM80mwqJ9r64VP0IwhP27PrAhpXSGrjhZXBMWJzuAVrA8MZUGhjPJhmaSVQ7vUDUQE86//
+    shell: /bin/false
+    system: yes
+    home: '{{tomee_home}}'
+    
+
+- name: Creation du dossier /opt/tomee avec owner et groupe tomee
+  file:
+    path: '{{tomee_dir}}'
+    state: directory
+    owner: tomee
+    group: tomee
+
+
+- name: Telechargement de l'archive TomEE
+  get_url:
+    url: http://repo.maven.apache.org/maven2/org/apache/tomee/apache-tomee/7.0.3/apache-tomee-7.0.3-plus.tar.gz
+    dest: '{{tomee_home}}'
+
+- name: Unzip et installation de TomEE dans /opt/tomee
+  command: /bin/tar xzvf /home/tomee/apache-tomee-7.0.3-plus.tar.gz -C /opt/tomee --strip-components=1
+
+- name: tomee propriétaire de /opt/tomee/webapps/
+  shell: chown -R tomee /opt/tomee/webapps/
+
+- name: tomee propriétaire de /opt/tomee/work/
+  shell: chown -R tomee /opt/tomee/work/
+
+- name: tomee propriétaire de /opt/tomee/temp/
+  shell: chown -R tomee /opt/tomee/temp/
+
+- name: tomee propriétaire de /opt/tomee/logs/
+  shell: chown -R tomee /opt/tomee/logs/
+
+- name: groupe tomee accès lecture seule + exe sur /opt/tomee/conf/
+  shell: chmod -R g+r /opt/tomee/conf | chmod g+x /opt/tomee/conf
+
+- name: Creation du fichier tomee.service
+  file: 
+    path: /etc/systemd/system/tomee.service 
+    state: touch
+  
+- name: écriture du contenu de tomee.service
+  shell: echo "[Unit] \nDescription=Apache TomEE Web Application Container\nAfter=network.target \n\n[Service]\nType=forking\n\nEnvironment=JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64\nEnvironment=CATALINA_PID=/opt/tomee/temp/tomee.pid\nEnvironment=CATALINA_HOME=/opt/tomee\nEnvironment=CATALINA_BASE=/opt/tomee\nEnvironment='CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC'\nEnvironment='JAVA_OPTS=-Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom'\n\nExecStart=/opt/tomee/bin/startup.sh\nExecStop=/opt/tomee/bin/shutdown.sh\n\nUser=tomee\nGroup=tomee\nUMask=0007\nRestartSec=10\nRestart=always\n\n[Install]\nWantedBy=multi-user.target " > /etc/systemd/system/tomee.service
+
+- name: MAJ et démarrage du service TomEE
+  shell: systemctl daemon-reload
+  shell: systemctl enable tomee
+   

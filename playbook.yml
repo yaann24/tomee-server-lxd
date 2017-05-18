@@ -1,0 +1,4 @@
+---
+- hosts: tomee
+  roles:
+    - tomee-server
